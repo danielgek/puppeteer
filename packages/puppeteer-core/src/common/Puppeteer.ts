@@ -44,6 +44,7 @@ export interface ConnectOptions extends BrowserConnectOptions {
    * Only works in the Node.js environment.
    */
   headers?: Record<string, string>;
+  sessionId?: string;
 }
 
 /**

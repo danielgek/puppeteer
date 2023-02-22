@@ -22,6 +22,7 @@ import {isErrorLike} from '../util/ErrorLike.js';
 import {CDPBrowser} from './Browser.js';
 import {Connection} from './Connection.js';
 import {ConnectionTransport} from './ConnectionTransport.js';
+import {BrowserWebSocketTransport} from './BrowserWebSocketTransport.js';
 import {getFetch} from './fetch.js';
 import type {ConnectOptions} from './Puppeteer.js';
 import {Viewport} from './PuppeteerViewport.js';
@@ -68,10 +69,7 @@ export interface BrowserConnectOptions {
 }
 
 const getWebSocketTransportClass = async () => {
-  return isNode
-    ? (await import('./NodeWebSocketTransport.js')).NodeWebSocketTransport
-    : (await import('./BrowserWebSocketTransport.js'))
-        .BrowserWebSocketTransport;
+  return BrowserWebSocketTransport;
 };
 
 /**
@@ -80,9 +78,14 @@ const getWebSocketTransportClass = async () => {
  *
  * @internal
  */
-export async function _connectToCDPBrowser(
-  options: BrowserConnectOptions & ConnectOptions
-): Promise<CDPBrowser> {
+export async function _connectToBrowser(
+  options: BrowserConnectOptions & {
+    browserWSEndpoint?: string;
+    browserURL?: string;
+    transport?: ConnectionTransport;
+    sessionId?: string;
+  }
+): Promise<Browser> {
   const {
     browserWSEndpoint,
     browserURL,
@@ -94,6 +97,7 @@ export async function _connectToCDPBrowser(
     targetFilter,
     _isPageTarget: isPageTarget,
     protocolTimeout,
+    sessionId = "unknown",
   } = options;
 
   assert(
@@ -147,7 +151,8 @@ export async function _connectToCDPBrowser(
       return connection.send('Browser.close').catch(debugError);
     },
     targetFilter,
-    isPageTarget
+    isPageTarget,
+    sessionId
   );
   return browser;
 }

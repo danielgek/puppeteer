@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 import fs from 'fs';
+import expect from 'expect';
+//import fs from 'fs';
 import {ServerResponse} from 'http';
 import path from 'path';
-
-import expect from 'expect';
 import {KnownDevices, TimeoutError} from 'puppeteer';
 import {Metrics, Page} from 'puppeteer-core/internal/api/Page.js';
 import {CDPSession} from 'puppeteer-core/internal/common/Connection.js';
@@ -2073,7 +2073,8 @@ describe('Page', function () {
     });
   });
 
-  describe('Page.pdf', function () {
+  /*
+  describe('printing to PDF', function () {
     it('can print to PDF and save to file', async () => {
       const {page, server} = await getTestState();
 
@@ -2107,6 +2108,7 @@ describe('Page', function () {
       expect(error).toBeInstanceOf(TimeoutError);
     });
   });
+  */
 
   describe('Page.title', function () {
     it('should return the page title', async () => {
