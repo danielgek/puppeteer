@@ -155,7 +155,7 @@ export class CDPBrowser extends BrowserBase {
         new CDPBrowserContext(this.#connection, this, contextId)
       );
     }
-    this.#sessionId = sessionId || 'unknown'
+    this.#sessionId = sessionId || 'unknown';
   }
 
   #emitDisconnected = () => {
@@ -529,13 +529,12 @@ export class CDPBrowser extends BrowserBase {
    * Get the BISO session ID associated with this browser
    */
   sessionId(): string {
-    return this.#sessionId
+    return this.#sessionId;
   }
 
   #getVersion(): Promise<Protocol.Browser.GetVersionResponse> {
     return this.#connection.send('Browser.getVersion');
   }
-
 }
 
 /**
