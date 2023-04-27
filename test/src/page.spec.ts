@@ -15,7 +15,6 @@
  */
 import fs from 'fs';
 import expect from 'expect';
-//import fs from 'fs';
 import {ServerResponse} from 'http';
 import path from 'path';
 import {KnownDevices, TimeoutError} from 'puppeteer';
