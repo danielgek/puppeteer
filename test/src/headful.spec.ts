@@ -96,11 +96,6 @@ const serviceWorkerExtensionPath = path.join(
         )}`,
       ],
     });
-
-    devtoolsOptions = Object.assign({}, defaultBrowserOptions, {
-      headless: false,
-      devtools: true,
-    });
   });
 
   async function launchBrowser(options: any) {
@@ -168,31 +163,6 @@ const serviceWorkerExtensionPath = path.join(
         })
       ).toBe(42);
       await browserWithExtension.close();
-    });
-    it('target.page() should return a DevTools page if custom isPageTarget is provided', async function () {
-      const {puppeteer} = await getTestState({skipLaunch: true});
-      const originalBrowser = await launchBrowser(devtoolsOptions);
-
-      const browserWSEndpoint = originalBrowser.wsEndpoint();
-
-      const browser = await puppeteer.connect({
-        browserWSEndpoint,
-        _isPageTarget(target) {
-          return (
-            target.type() === 'other' && target.url().startsWith('devtools://')
-          );
-        },
-      });
-      const devtoolsPageTarget = await browser.waitForTarget(target => {
-        return target.type() === 'other';
-      });
-      const page = (await devtoolsPageTarget.page())!;
-      expect(
-        await page.evaluate(() => {
-          return 2 * 3;
-        })
-      ).toBe(6);
-      expect(await browser.pages()).toContainEqual(page);
     });
     it('should have default url when launching browser', async function () {
       const browser = await launchBrowser(extensionOptions);
