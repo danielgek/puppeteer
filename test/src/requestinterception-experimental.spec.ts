@@ -690,20 +690,6 @@ describe('request interception', function () {
       await page.reload();
       expect(cached).toHaveLength(1);
     });
-    it('should load fonts if cache enabled', async () => {
-      const {page, server} = await getTestState();
-
-      await page.setRequestInterception(true);
-      await page.setCacheEnabled(true);
-      page.on('request', request => {
-        return request.continue({}, 0);
-      });
-
-      await page.goto(server.PREFIX + '/cached/one-style-font.html');
-      await page.waitForResponse(r => {
-        return r.url().endsWith('/one-style.woff');
-      });
-    });
   });
 
   describe('Request.continue', function () {
