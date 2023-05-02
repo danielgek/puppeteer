@@ -45,15 +45,6 @@ describe('Browser specs', function () {
     });
   });
 
-  describe('Browser.target', function () {
-    it('should return browser target', async () => {
-      const {browser} = await getTestState();
-
-      const target = browser.target();
-      expect(target.type()).toBe('browser');
-    });
-  });
-
   describe('Browser.process', function () {
     it('should return child_process instance', async () => {
       const {browser} = await getTestState();

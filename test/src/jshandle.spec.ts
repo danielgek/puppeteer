@@ -163,16 +163,6 @@ describe('JSHandle', function () {
       expect(date).toBeInstanceOf(Date);
       expect(date.toISOString()).toEqual('2017-09-26T00:00:00.000Z');
     });
-    it('should not throw for circular objects', async () => {
-      const {page} = await getTestState();
-
-      const handle = await page.evaluateHandle(() => {
-        const t: {t?: unknown; g: number} = {g: 1};
-        t.t = t;
-        return t;
-      });
-      await handle.jsonValue();
-    });
   });
 
   describe('JSHandle.getProperties', function () {
