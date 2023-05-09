@@ -17,7 +17,7 @@
 // import {initializePuppeteer} from './initializePuppeteer.js';
 import {Browser} from './common/Browser.js';
 import {BrowserWorker} from './common/BrowserWorker.js';
-import {Puppeteer, ConnectOptions} from './common/Puppeteer.js';
+import {Puppeteer} from './common/Puppeteer.js';
 import {WorkersWebSocketTransport} from './common/WorkersWebSocketTransport.js';
 
 export * from './common/NetworkConditions.js';
@@ -120,116 +120,16 @@ class PuppeteerWorkers extends Puppeteer {
     const text = await res.text();
     if (status !== 200) {
       throw new Error(
-        `Unable to create new browser: code: ${status}: message: ${text}`
+        `Unabled to create new browser: code: ${status}: message: ${text}`
       );
     }
-    // Got a 200, so response text is actually an AcquireResponse
-    const response: AcquireResponse = JSON.parse(text);
-    return this.connect(endpoint, response.sessionId);
-  }
-
-  /**
-   * Returns active sessions
-   *
-   * @remarks
-   * Sessions with a connnectionId already have a worker connection established
-   *
-   * @param endpoint - Cloudflare worker binding
-   * @returns List of active sessions
-   */
-  public async sessions(endpoint: BrowserWorker) {
-    const res = await endpoint.fetch(`${FAKE_HOST}/v1/sessions`);
-    const status = res.status;
-    const text = await res.text();
-    if (status !== 200) {
-      throw new Error(
-        `Unable to fetch new sessions: code: ${status}: message: ${text}`
-      );
-    }
-    const data: SessionsResponse = JSON.parse(text);
-    return data.sessions;
-  }
-
-  /**
-   * Returns recent sessions (active and closed)
-   *
-   * @param endpoint - Cloudflare worker binding
-   * @returns List of recent sessions (active and closed)
-   */
-  public async history(endpoint: BrowserWorker) {
-    const res = await endpoint.fetch(`${FAKE_HOST}/v1/history`);
-    const status = res.status;
-    const text = await res.text();
-    if (status !== 200) {
-      throw new Error(
-        `Unable to fetch account history: code: ${status}: message: ${text}`
-      );
-    }
-    const data: HistoryResponse = JSON.parse(text);
-    return data.history;
-  }
-
-  /**
-   * Returns current limits
-   *
-   * @param endpoint - Cloudflare worker binding
-   * @returns current limits
-   */
-  public async limits(endpoint: BrowserWorker) {
-    const res = await endpoint.fetch(`${FAKE_HOST}/v1/limits`);
-    const status = res.status;
-    const text = await res.text();
-    if (status !== 200) {
-      throw new Error(
-        `Unable to fetch account limits: code: ${status}: message: ${text}`
-      );
-    }
-    const data: LimitsResponse = JSON.parse(text);
-    return data;
-  }
-  
-
-  /**
-   * Establish a devtools connection to an existing session
-   *
-   * @param endpoint - Cloudflare worker binding
-   * @param sessionId - sessionId obtained from a .sessions() call
-   * @returns a browser instance
-   */
-  public override async connect(
-    endpoint: BrowserWorker,
-    sessionId: string
-  ): Promise<Browser>;
-
-  /**
-   * Establish a devtools connection to an existing session
-   *
-   * @param options - ConnectOptions
-   * @returns a browser instance
-   */
-  public override async connect(options: ConnectOptions): Promise<Browser>;
-
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  public override async connect(
-    endpointOrOptions: BrowserWorker | ConnectOptions,
-    sessionId?: string
-  ): Promise<Browser> {
-    if (!sessionId) {
-      return super.connect(endpointOrOptions as ConnectOptions);
-    }
-    const endpoint = endpointOrOptions as BrowserWorker;
-    try {
-      const transport = await WorkersWebSocketTransport.create(
-        endpoint,
-        sessionId
-      );
-      return super.connect({transport, sessionId: sessionId});
-    } catch (e) {
-      throw new Error(
-        `Unable to connect to existing session ${sessionId} (it may still be in use or not ready yet) - retry or launch a new browser: ${e}`
-      );
-    }
+    // Got a 200, so response text is actually a session id
+    const sessionId = text;
+    const transport = await WorkersWebSocketTransport.create(
+      endpoint,
+      sessionId
+    );
+    return this.connect({transport, sessionId});
   }
 }
 
