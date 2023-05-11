@@ -53,42 +53,8 @@ declare global {
   }
 }
 
-export interface AcquireResponse {
+interface AcquireResponse {
   sessionId: string;
-}
-
-export interface ActiveSession {
-  sessionId: string;
-  startTime: number; // timestamp
-  // connection info, if present means there's a connection established
-  // from a worker to that session
-  connectionId?: string;
-  connectionStartTime?: string;
-}
-
-export interface ClosedSession extends ActiveSession {
-  endTime: number; // timestamp
-  closeReason: number; // close reason code
-  closeReasonText: string; // close reason description
-}
-
-export interface SessionsResponse {
-  sessions: ActiveSession[];
-}
-
-export interface HistoryResponse {
-  history: ClosedSession[];
-}
-
-export interface LimitsResponse {
-  activeSessions: Array<{id: string}>;
-  maxConcurrentSessions: number;
-  allowedBrowserAcquisitions: number; // 1 if allowed, 0 otherwise
-  timeUntilNextAllowedBrowserAcquisition: number;
-}
-
-export interface LaunchOptions {
-  keep_alive?: number; // milliseconds to keep browser alive even if it has no activity (from 10_000ms to 600_000ms, default is 60_000)
 }
 
 class PuppeteerWorkers extends Puppeteer {
@@ -123,13 +89,13 @@ class PuppeteerWorkers extends Puppeteer {
         `Unabled to create new browser: code: ${status}: message: ${text}`
       );
     }
-    // Got a 200, so response text is actually a session id
-    const sessionId = text;
+    // Got a 200, so response text is actually an AcquireResponse
+    const response: AcquireResponse = JSON.parse(text);
     const transport = await WorkersWebSocketTransport.create(
       endpoint,
-      sessionId
+      response.sessionId
     );
-    return this.connect({transport, sessionId});
+    return this.connect({transport, sessionId: response.sessionId});
   }
 }
 
