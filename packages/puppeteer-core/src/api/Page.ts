@@ -62,6 +62,7 @@ import {
   debugError,
   evaluationString,
   getExceptionMessage,
+  getReadableAsBuffer,
   getReadableFromProtocolStream,
   isNumber,
   isString,
@@ -2662,8 +2663,8 @@ export class Page extends EventEmitter {
   /**
    * @param options -
    * @returns
-   *
-  */
+   */
+
   async pdf(options: PDFOptions = {}): Promise<Buffer> {
     const {path = undefined} = options;
     const readable = await this.createPDFStream(options);
@@ -2673,8 +2674,7 @@ export class Page extends EventEmitter {
   }
 
   /**
-   * The page's title
-   *
+   * @returns The page's title
    * @remarks
    * Shortcut for {@link Frame.title | page.mainFrame().title()}.
    */
