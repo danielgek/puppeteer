@@ -92,6 +92,11 @@ import {
   NodeLocator,
 } from './locators/locators.js';
 import type {Target} from './Target.js';
+import {
+  createDeferredPromiseWithTimer,
+  DeferredPromise,
+} from '../util/DeferredPromise.js';
+import {Buffer} from 'node:buffer';
 
 /**
  * @public
