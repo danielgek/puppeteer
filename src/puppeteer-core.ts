@@ -53,6 +53,10 @@ declare global {
   }
 }
 
+interface LaunchOptions {
+  connectToActiveSession: boolean // connect to a randomly picked active session if available
+}
+
 interface AcquireResponse {
   sessionId: string;
 }
@@ -60,6 +64,10 @@ interface AcquireResponse {
 interface ActiveSession {
   sessionId: string;
   startTime: number; // timestamp
+  // connection info, if present means there's a connection established
+  // from a worker to that session
+  connectionId?: string
+  connectionStartTime?: string
 }
 
 interface ClosedSession extends ActiveSession {
@@ -86,21 +94,14 @@ class PuppeteerWorkers extends Puppeteer {
     this.limits = this.limits.bind(this);
   }
 
-  /**
-   * Launch a browser session.
-   *
-   * @param endpoint - Cloudflare worker binding
-   * @returns a browser session or throws
-   */
-  public async launch(
-    endpoint: BrowserWorker,
-    options?: LaunchOptions
-  ): Promise<Browser> {
-    let acquireUrl = `${FAKE_HOST}/v1/acquire`;
-    if (options?.keep_alive) {
-      acquireUrl = `${acquireUrl}?keep_alive=${options.keep_alive}`;
+  public async launch(endpoint: BrowserWorker, opts?: LaunchOptions): Promise<Browser> {
+    opts = opts || {
+      connectToActiveSession: false
     }
-    const res = await endpoint.fetch(acquireUrl);
+    if (opts.connectToActiveSession) {
+      return this.connectOrLaunch(endpoint)
+    }
+    const res = await endpoint.fetch('/v1/acquire');
     const status = res.status;
     const text = await res.text();
     if (status !== 200) {
@@ -113,7 +114,27 @@ class PuppeteerWorkers extends Puppeteer {
     return this.connect(endpoint, response.sessionId);
   }
 
-  // Returns active sessions (may or may not have clients connected)
+  public async connectOrLaunch(endpoint: BrowserWorker): Promise<Browser> {
+    // Do we have any active free session
+    const sessions = await this.sessions(endpoint)
+    const sessionsIds = sessions.filter(v => !v.connectionId).map(v => v.sessionId)
+    const launchOpts = {
+      connectToActiveSession: false
+    }
+    if (sessionsIds) {
+      // get random session
+      const sessionId = sessionsIds[Math.floor(Math.random() * sessionsIds.length)];
+      return this.connect(endpoint, sessionId!).catch(e => {
+        console.log(e)
+        return this.launch(endpoint, launchOpts)
+      })
+    }
+    return this.launch(endpoint, launchOpts)
+  }
+
+  // Returns active sessions
+  // Sessions with a connnectionId already have a worker connection
+  // established
   async sessions(endpoint: BrowserWorker) {
     const res = await endpoint.fetch('/v1/sessions');
     const status = res.status;
@@ -127,19 +148,19 @@ class PuppeteerWorkers extends Puppeteer {
     return data.sessions;
   }
 
-  // Returns recent sessions
+  // Returns recent sessions, active and closed
   async history(endpoint: BrowserWorker) {
     const res = await endpoint.fetch('/v1/history');
     const status = res.status;
     const text = await res.text();
     if (status !== 200) {
       throw new Error(
-        `Unable to fetch session history: code: ${status}: message: ${text}`
+        `Unable to fetch account history: code: ${status}: message: ${text}`
       );
     }
     const data: HistoryResponse = JSON.parse(text);
     return data.history;
-}
+  }
 
   // @ts-ignore
   override async connect(endpoint: BrowserWorker, sessionId: string): Promise<Browser> {
