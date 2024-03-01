@@ -119,108 +119,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
-        suite:
-          - chrome-headless
-          - chrome-headful
-          - chrome-new-headless
-          - chrome-bidi
-        exclude:
-          - os: windows-latest
-            suite: chrome-bidi
-          - os: macos-latest
-            suite: chrome-headful
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - name: Set up Node.js
-        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
-        with:
-          cache: npm
-          node-version: lts/*
-      - name: Install dependencies
-        run: npm ci
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: true
-      - name: Build packages
-        run: npm run build --workspace @puppeteer-test/test
-      - name: Setup cache for Chrome binary
-        if: ${{ matrix.suite != 'chrome-bidi' }}
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
-        with:
-          path: ~/.cache/puppeteer/chrome
-          key: ${{ runner.os }}-Chrome-${{ hashFiles('packages/puppeteer-core/src/revisions.ts') }}-${{ hashFiles('packages/puppeteer/src/node/install.ts') }}
-      - name: Install Chrome
-        if: ${{ matrix.suite != 'chrome-bidi' }}
-        run: npm run postinstall
-      - name: Setup cache for Chrome Canary binary
-        if: ${{ matrix.suite == 'chrome-bidi' }}
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
-        with:
-          path: ~/.cache/puppeteer/chrome-canary
-          key: ${{ runner.os }}-Chrome-Canary-${{ hashFiles('package.json') }}
-      - name: Install Chrome Canary
-        if: ${{ matrix.suite == 'chrome-bidi' }}
-        id: browser
-        run: node tools/download_chrome_bidi.mjs ~/.cache/puppeteer/chrome-canary
-      - name: Tests types
-        run: npm run test-types
-      - name: Run all tests (for non-Linux)
-        if: ${{ matrix.os != 'ubuntu-latest' }}
-        run: npm run test -- --test-suite ${{ matrix.suite }} --save-stats-to /tmp/artifacts/${{ github.event_name }}_INSERTID.json
-        env:
-          PUPPETEER_EXECUTABLE_PATH: ${{ steps.browser.outputs.executablePath }}
-      - name: Install linux dependencies.
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: sudo apt-get install xvfb
-      - name: Run all tests (for Linux)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: xvfb-run --auto-servernum npm run test -- --test-suite ${{ matrix.suite }} --save-stats-to /tmp/artifacts/${{ github.event_name }}_INSERTID.json
-        env:
-          PUPPETEER_EXECUTABLE_PATH: ${{ steps.browser.outputs.executablePath }}
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-        if: always()
-        with:
-          name: test-results
-          path: /tmp/artifacts/*.json
-
-  chrome-tests-required:
-    name: '[Required] Chrome tests'
-    needs: [check-changes, chrome-tests]
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - if: ${{ needs.chrome-tests.result != 'success' && contains(fromJSON(needs.check-changes.outputs.changes), 'puppeteer') }}
-        run: 'exit 1'
-      - run: 'exit 0'
-
-  firefox-tests:
-    name: ${{ matrix.suite }} tests on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    needs: check-changes
-    if: ${{ contains(fromJSON(needs.check-changes.outputs.changes), 'puppeteer') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-        suite:
-          - firefox-bidi
-          - firefox-headful
-          - firefox-headless
-        exclude:
-          - os: macos-latest
-            suite: firefox-headful
-          - os: macos-latest
-            suite: firefox-headless
-          # Disabled due to https://bugzilla.mozilla.org/show_bug.cgi?id=1843550
-          # The first time the browsers launches it crashes.
-          - os: macos-latest
-            suite: firefox-bidi
+        spec:
+          - name: Linux
+            machine: ubuntu-latest
+            node: 14
+          - name: Linux
+            machine: ubuntu-latest
+            node: 16
+          - name: Linux
+            machine: ubuntu-latest
+            node: 18.18
+          - name: macOS
+            machine: macos-latest
+            node: 14
+          - name: Windows
+            machine: windows-latest
+            node: 14
     steps:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
