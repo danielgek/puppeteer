@@ -24,6 +24,10 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v3.4.1
+        with:
+          node-version: 18.18
       - name: Install dependencies
         run: npm ci
       - name: Build
