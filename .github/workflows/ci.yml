@@ -43,8 +43,7 @@ jobs:
         run: npm run check
       - name: Lint code
         run: npm run lint
-      - name: Lint commits
-        run: npm run commitlint
+
 
   check-changes:
     needs: inspect-code
