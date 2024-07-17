@@ -1,0 +1,273 @@
+diff --git a/packages/puppeteer-core/src/api/HTTPResponse.ts b/packages/puppeteer-core/src/api/HTTPResponse.ts
+index 8853d202237..b0f0cca46d9 100644
+--- a/packages/puppeteer-core/src/api/HTTPResponse.ts
++++ b/packages/puppeteer-core/src/api/HTTPResponse.ts
+@@ -20,6 +20,7 @@ import {SecurityDetails} from '../common/SecurityDetails.js';
+ 
+ import {Frame} from './Frame.js';
+ import {HTTPRequest} from './HTTPRequest.js';
++import {Buffer} from 'node:buffer';
+ 
+ /**
+  * @public
+diff --git a/packages/puppeteer-core/src/api/Page.ts b/packages/puppeteer-core/src/api/Page.ts
+index 9d366f6b260..702a0b481f1 100644
+--- a/packages/puppeteer-core/src/api/Page.ts
++++ b/packages/puppeteer-core/src/api/Page.ts
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-import type {Readable} from 'stream';
++import type {Readable} from 'node:stream';
+ 
+ import {Protocol} from 'devtools-protocol';
+ 
+@@ -82,6 +82,8 @@ import {
+ } from './locators/locators.js';
+ import type {Target} from './Target.js';
+ 
++import {Buffer} from 'node:buffer';
++
+ /**
+  * @public
+  */
+diff --git a/packages/puppeteer-core/src/common/Browser.ts b/packages/puppeteer-core/src/common/Browser.ts
+index b2d0f2af16a..a31e8a52686 100644
+--- a/packages/puppeteer-core/src/common/Browser.ts
++++ b/packages/puppeteer-core/src/common/Browser.ts
+@@ -49,11 +49,11 @@ import {TargetManager, TargetManagerEmittedEvents} from './TargetManager.js';
+ import {TaskQueue} from './TaskQueue.js';
+ 
+ /**
+- * @internal
++ * @public
+  */
+ export class CDPBrowser extends BrowserBase {
+   /**
+-   * @internal
++   * @public
+    */
+   static async _create(
+     product: 'firefox' | 'chrome' | undefined,
+@@ -65,7 +65,8 @@ export class CDPBrowser extends BrowserBase {
+     closeCallback?: BrowserCloseCallback,
+     targetFilterCallback?: TargetFilterCallback,
+     isPageTargetCallback?: IsPageTargetCallback,
+-    waitForInitiallyDiscoveredTargets = true
++    waitForInitiallyDiscoveredTargets = true,
++    sessionId?: string
+   ): Promise<CDPBrowser> {
+     const browser = new CDPBrowser(
+       product,
+@@ -77,7 +78,8 @@ export class CDPBrowser extends BrowserBase {
+       closeCallback,
+       targetFilterCallback,
+       isPageTargetCallback,
+-      waitForInitiallyDiscoveredTargets
++      waitForInitiallyDiscoveredTargets,
++      sessionId,
+     );
+     await browser._attach();
+     return browser;
+@@ -93,6 +95,7 @@ export class CDPBrowser extends BrowserBase {
+   #contexts = new Map<string, CDPBrowserContext>();
+   #screenshotTaskQueue: TaskQueue;
+   #targetManager: TargetManager;
++  #sessionId: string;
+ 
+   /**
+    * @internal
+@@ -114,7 +117,8 @@ export class CDPBrowser extends BrowserBase {
+     closeCallback?: BrowserCloseCallback,
+     targetFilterCallback?: TargetFilterCallback,
+     isPageTargetCallback?: IsPageTargetCallback,
+-    waitForInitiallyDiscoveredTargets = true
++    waitForInitiallyDiscoveredTargets = true,
++    sessionId?: string
+   ) {
+     super();
+     product = product || 'chrome';
+@@ -122,6 +126,8 @@ export class CDPBrowser extends BrowserBase {
+     this.#defaultViewport = defaultViewport;
+     this.#process = process;
+     this.#screenshotTaskQueue = new TaskQueue();
++    console.log('onn cdp')
++    console.log(connection);
+     this.#connection = connection;
+     this.#closeCallback = closeCallback || function (): void {};
+     this.#targetFilterCallback =
+@@ -151,6 +157,15 @@ export class CDPBrowser extends BrowserBase {
+         new CDPBrowserContext(this.#connection, this, contextId)
+       );
+     }
++    this.#sessionId = sessionId || 'unknown';
++  }
++
++
++  /**
++   * Get the BISO session ID associated with this browser
++   */
++  sessionId(): string {
++    return this.#sessionId;
+   }
+ 
+   #emitDisconnected = () => {
+diff --git a/packages/puppeteer-core/src/common/BrowserConnector.ts b/packages/puppeteer-core/src/common/BrowserConnector.ts
+index c9916a85706..3fc315d5142 100644
+--- a/packages/puppeteer-core/src/common/BrowserConnector.ts
++++ b/packages/puppeteer-core/src/common/BrowserConnector.ts
+@@ -51,7 +51,7 @@ export interface BrowserConnectOptions {
+    */
+   targetFilter?: TargetFilterCallback;
+   /**
+-   * @internal
++   * @public
+    */
+   _isPageTarget?: IsPageTargetCallback;
+   /**
+diff --git a/packages/puppeteer-core/src/common/HTTPResponse.ts b/packages/puppeteer-core/src/common/HTTPResponse.ts
+index 0a01fff4a12..f624df60eaf 100644
+--- a/packages/puppeteer-core/src/common/HTTPResponse.ts
++++ b/packages/puppeteer-core/src/common/HTTPResponse.ts
+@@ -26,6 +26,7 @@ import {CDPSession} from './Connection.js';
+ import {ProtocolError} from './Errors.js';
+ import {HTTPRequest} from './HTTPRequest.js';
+ import {SecurityDetails} from './SecurityDetails.js';
++import {Buffer} from 'node:buffer';
+ 
+ /**
+  * @internal
+diff --git a/packages/puppeteer-core/src/common/Page.ts b/packages/puppeteer-core/src/common/Page.ts
+index 86319543d6d..cb341ebbf05 100644
+--- a/packages/puppeteer-core/src/common/Page.ts
++++ b/packages/puppeteer-core/src/common/Page.ts
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-import type {Readable} from 'stream';
++import type {Readable} from 'node:stream';
+ 
+ import {Protocol} from 'devtools-protocol';
+ 
+@@ -90,6 +90,9 @@ import {
+ } from './util.js';
+ import {WebWorker} from './WebWorker.js';
+ 
++
++import {Buffer} from 'node:buffer';
++
+ /**
+  * @internal
+  */
+diff --git a/packages/puppeteer-core/src/common/Puppeteer.ts b/packages/puppeteer-core/src/common/Puppeteer.ts
+index 068ec173f07..9c26c8c2c7f 100644
+--- a/packages/puppeteer-core/src/common/Puppeteer.ts
++++ b/packages/puppeteer-core/src/common/Puppeteer.ts
+@@ -125,7 +125,7 @@ export class Puppeteer {
+   protected _changedProduct = false;
+ 
+   /**
+-   * @internal
++   * @public
+    */
+   constructor(settings: CommonPuppeteerSettings) {
+     this._isPuppeteerCore = settings.isPuppeteerCore;
+diff --git a/packages/puppeteer-core/src/common/util.ts b/packages/puppeteer-core/src/common/util.ts
+index a2ec79f101c..6a96bac5f5d 100644
+--- a/packages/puppeteer-core/src/common/util.ts
++++ b/packages/puppeteer-core/src/common/util.ts
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-import type {Readable} from 'stream';
++import type {Readable} from 'node:stream';
+ 
+ import type {Protocol} from 'devtools-protocol';
+ 
+@@ -585,7 +585,7 @@ export async function getReadableFromProtocolStream(
+     throw new Error('Cannot create a stream outside of Node.js environment.');
+   }
+ 
+-  const {Readable} = await import('stream');
++  const {Readable} = await import('node:stream');
+ 
+   let eof = false;
+   return new Readable({
+diff --git a/packages/puppeteer-core/src/puppeteer-core.ts b/packages/puppeteer-core/src/puppeteer-core.ts
+index 08cb8092a51..e2dc3a14ea1 100644
+--- a/packages/puppeteer-core/src/puppeteer-core.ts
++++ b/packages/puppeteer-core/src/puppeteer-core.ts
+@@ -18,41 +18,43 @@ export {Protocol} from 'devtools-protocol';
+ 
+ export * from './api/api.js';
+ export * from './common/common.js';
+-export * from './node/node.js';
++// export * from './node/node.js';
+ export * from './revisions.js';
+ export * from './util/util.js';
++// export {Puppeteer} from './common/common.js'
++export type {BrowserLaunchArgumentOptions, ChromeReleaseChannel, PuppeteerLaunchOptions} from './node/node.js'
+ 
+ /**
+  * @deprecated Use the query handler API defined on {@link Puppeteer}
+  */
+ export * from './common/CustomQueryHandler.js';
+ 
+-import {PuppeteerNode} from './node/PuppeteerNode.js';
++// import {PuppeteerNode} from './node/PuppeteerNode.js';
+ 
+-/**
+- * @public
+- */
+-const puppeteer = new PuppeteerNode({
+-  isPuppeteerCore: true,
+-});
++// /**
++//  * @public
++//  */
++// const puppeteer = new PuppeteerNode({
++//   isPuppeteerCore: true,
++// });
+ 
+-export const {
+-  /**
+-   * @public
+-   */
+-  connect,
+-  /**
+-   * @public
+-   */
+-  defaultArgs,
+-  /**
+-   * @public
+-   */
+-  executablePath,
+-  /**
+-   * @public
+-   */
+-  launch,
+-} = puppeteer;
++// export const {
++//   /**
++//    * @public
++//    */
++//   connect,
++//   /**
++//    * @public
++//    */
++//   defaultArgs,
++//   /**
++//    * @public
++//    */
++//   executablePath,
++//   /**
++//    * @public
++//    */
++//   launch,
++// } = puppeteer;
+ 
+-export default puppeteer;
++// export default puppeteer;
