@@ -32,38 +32,27 @@ import type {FileChooser} from '../common/FileChooser.js';
 import type {WaitForSelectorOptions} from '../common/IsolatedWorld.js';
 import type {PuppeteerLifeCycleEvent} from '../common/LifecycleWatcher.js';
 import {
-  importFSPromises,
   Credentials,
   NetworkConditions,
   NetworkManagerEmittedEvents,
 } from '../common/NetworkManager.js';
-// import {
-//   LowerCasePaperFormat,
-//   paperFormats,
-//   ParsedPDFOptions,
-//   PDFOptions,
-// } from '../common/PDFOptions.js';
-import type {Tracing} from '../common/Tracing.js';
-// import type {
-//   Awaitable,
-//   EvaluateFunc,
-//   EvaluateFuncWith,
-//   HandleFor,
-//   NodeFor,
-// } from '../common/types.js';
-import {LowerCasePaperFormat, PDFOptions, _paperFormats} from './PDFOptions.js';
-import {Viewport} from './PuppeteerViewport.js';
-import {TargetManagerEmittedEvents} from './TargetManager.js';
-import {TaskQueue} from './TaskQueue.js';
-import {TimeoutSettings} from './TimeoutSettings.js';
-import {EvaluateFunc, HandleFor, NodeFor} from './types.js';
 import {
-  createJSHandle,
-  debugError,
-  evaluationString,
-  getExceptionMessage,
-  getReadableAsBuffer,
-  getReadableFromProtocolStream,
+  LowerCasePaperFormat,
+  paperFormats,
+  ParsedPDFOptions,
+  PDFOptions,
+} from '../common/PDFOptions.js';
+import type {Viewport} from '../common/PuppeteerViewport.js';
+import type {Tracing} from '../common/Tracing.js';
+import type {
+  Awaitable,
+  EvaluateFunc,
+  EvaluateFuncWith,
+  HandleFor,
+  NodeFor,
+} from '../common/types.js';
+import {
+  importFSPromises,
   isNumber,
   isString,
   waitForEvent,
@@ -92,11 +81,6 @@ import {
   NodeLocator,
 } from './locators/locators.js';
 import type {Target} from './Target.js';
-import {
-  createDeferredPromiseWithTimer,
-  DeferredPromise,
-} from '../util/DeferredPromise.js';
-import {Buffer} from 'node:buffer';
 
 /**
  * @public
@@ -482,219 +466,13 @@ export interface NewDocumentScriptEvaluation {
  * @public
  */
 export class Page extends EventEmitter {
-  /**
-   * @internal
-   */
-  static async _create(
-    client: CDPSession,
-    target: Target,
-    ignoreHTTPSErrors: boolean,
-    defaultViewport: Viewport | null,
-    screenshotTaskQueue: TaskQueue
-  ): Promise<Page> {
-    const page = new Page(
-      client,
-      target,
-      ignoreHTTPSErrors,
-      screenshotTaskQueue
-    );
-    await page.#initialize();
-    if (defaultViewport) {
-      await page.setViewport(defaultViewport);
-    }
-    return page;
-  }
-
-  #closed = false;
-  #client: CDPSession;
-  #target: Target;
-  #keyboard: Keyboard;
-  #mouse: Mouse;
-  #timeoutSettings = new TimeoutSettings();
-  #touchscreen: Touchscreen;
-  #accessibility: Accessibility;
-  #frameManager: FrameManager;
-  #emulationManager: EmulationManager;
-  #pageBindings = new Map<string, Function>();
-  #coverage: Coverage;
-  #javascriptEnabled = true;
-  #viewport: Viewport | null;
-  #screenshotTaskQueue: TaskQueue;
-  #workers = new Map<string, WebWorker>();
-  #fileChooserPromises = new Set<DeferredPromise<FileChooser>>();
-
-  #disconnectPromise?: Promise<Error>;
-  #userDragInterceptionEnabled = false;
-  #handlerMap = new WeakMap<Handler, Handler>();
+  #handlerMap = new WeakMap<Handler<any>, Handler<any>>();
 
   /**
    * @internal
    */
   constructor() {
     super();
-    this.#client = client;
-    this.#target = target;
-    this.#keyboard = new Keyboard(client);
-    this.#mouse = new Mouse(client, this.#keyboard);
-    this.#touchscreen = new Touchscreen(client, this.#keyboard);
-    this.#accessibility = new Accessibility(client);
-    this.#frameManager = new FrameManager(
-      client,
-      this,
-      ignoreHTTPSErrors,
-      this.#timeoutSettings
-    );
-    this.#emulationManager = new EmulationManager(client);
-    this.#coverage = new Coverage(client);
-    this.#screenshotTaskQueue = screenshotTaskQueue;
-    this.#viewport = null;
-
-    this.#target
-      ._targetManager()
-      .addTargetInterceptor(this.#client, this.#onAttachedToTarget);
-
-    this.#target
-      ._targetManager()
-      .on(TargetManagerEmittedEvents.TargetGone, this.#onDetachedFromTarget);
-
-    this.#frameManager.on(FrameManagerEmittedEvents.FrameAttached, event => {
-      return this.emit(PageEmittedEvents.FrameAttached, event);
-    });
-    this.#frameManager.on(FrameManagerEmittedEvents.FrameDetached, event => {
-      return this.emit(PageEmittedEvents.FrameDetached, event);
-    });
-    this.#frameManager.on(FrameManagerEmittedEvents.FrameNavigated, event => {
-      return this.emit(PageEmittedEvents.FrameNavigated, event);
-    });
-
-    const networkManager = this.#frameManager.networkManager;
-    networkManager.on(NetworkManagerEmittedEvents.Request, event => {
-      return this.emit(PageEmittedEvents.Request, event);
-    });
-    networkManager.on(
-      NetworkManagerEmittedEvents.RequestServedFromCache,
-      event => {
-        return this.emit(PageEmittedEvents.RequestServedFromCache, event);
-      }
-    );
-    networkManager.on(NetworkManagerEmittedEvents.Response, event => {
-      return this.emit(PageEmittedEvents.Response, event);
-    });
-    networkManager.on(NetworkManagerEmittedEvents.RequestFailed, event => {
-      return this.emit(PageEmittedEvents.RequestFailed, event);
-    });
-    networkManager.on(NetworkManagerEmittedEvents.RequestFinished, event => {
-      return this.emit(PageEmittedEvents.RequestFinished, event);
-    });
-
-    client.on('Page.domContentEventFired', () => {
-      return this.emit(PageEmittedEvents.DOMContentLoaded);
-    });
-    client.on('Page.loadEventFired', () => {
-      return this.emit(PageEmittedEvents.Load);
-    });
-    client.on('Runtime.consoleAPICalled', event => {
-      return this.#onConsoleAPI(event);
-    });
-    client.on('Runtime.bindingCalled', event => {
-      return this.#onBindingCalled(event);
-    });
-    client.on('Page.javascriptDialogOpening', event => {
-      return this.#onDialog(event);
-    });
-    client.on('Runtime.exceptionThrown', exception => {
-      return this.#handleException(exception.exceptionDetails);
-    });
-    client.on('Inspector.targetCrashed', () => {
-      return this.#onTargetCrashed();
-    });
-    client.on('Performance.metrics', event => {
-      return this.#emitMetrics(event);
-    });
-    client.on('Log.entryAdded', event => {
-      return this.#onLogEntryAdded(event);
-    });
-    client.on('Page.fileChooserOpened', event => {
-      return this.#onFileChooser(event);
-    });
-    this.#target._isClosedPromise.then(() => {
-      this.#target
-        ._targetManager()
-        .removeTargetInterceptor(this.#client, this.#onAttachedToTarget);
-
-      this.#target
-        ._targetManager()
-        .off(TargetManagerEmittedEvents.TargetGone, this.#onDetachedFromTarget);
-      this.emit(PageEmittedEvents.Close);
-      this.#closed = true;
-    });
-  }
-
-  #onDetachedFromTarget = (target: Target) => {
-    const sessionId = target._session()?.id();
-
-    this.#frameManager.onDetachedFromTarget(target);
-
-    const worker = this.#workers.get(sessionId!);
-    if (!worker) {
-      return;
-    }
-    this.#workers.delete(sessionId!);
-    this.emit(PageEmittedEvents.WorkerDestroyed, worker);
-  };
-
-  #onAttachedToTarget = async (createdTarget: Target) => {
-    this.#frameManager.onAttachedToTarget(createdTarget);
-    if (createdTarget._getTargetInfo().type === 'worker') {
-      const session = createdTarget._session();
-      assert(session);
-      const worker = new WebWorker(
-        session,
-        createdTarget.url(),
-        this.#addConsoleMessage.bind(this),
-        this.#handleException.bind(this)
-      );
-      this.#workers.set(session.id(), worker);
-      this.emit(PageEmittedEvents.WorkerCreated, worker);
-    }
-    if (createdTarget._session()) {
-      this.#target
-        ._targetManager()
-        .addTargetInterceptor(
-          createdTarget._session()!,
-          this.#onAttachedToTarget
-        );
-    }
-  };
-
-  async #initialize(): Promise<void> {
-    await Promise.all([
-      this.#frameManager.initialize(this.#target._targetId),
-      this.#client.send('Performance.enable'),
-      this.#client.send('Log.enable'),
-    ]);
-  }
-
-  async #onFileChooser(
-    event: Protocol.Page.FileChooserOpenedEvent
-  ): Promise<void> {
-    if (!this.#fileChooserPromises.size) {
-      return;
-    }
-
-    const frame = this.#frameManager.frame(event.frameId);
-    assert(frame, 'This should never happen.');
-
-    // This is guaranteed to be an HTMLInputElement handle by the event.
-    const handle = (await frame.worlds[MAIN_WORLD].adoptBackendNode(
-      event.backendNodeId
-    )) as ElementHandle<HTMLInputElement>;
-
-    const fileChooser = new FileChooser(handle, event);
-    for (const promise of this.#fileChooserPromises) {
-      promise.resolve(fileChooser);
-    }
-    this.#fileChooserPromises.clear();
   }
 
   /**
@@ -848,23 +626,7 @@ export class Page extends EventEmitter {
    * Page is guaranteed to have a main frame which persists during navigations.
    */
   mainFrame(): Frame {
-    return this.#frameManager.mainFrame();
-  }
-
-  get keyboard(): Keyboard {
-    return this.#keyboard;
-  }
-
-  get touchscreen(): Touchscreen {
-    return this.#touchscreen;
-  }
-
-  get coverage(): Coverage {
-    return this.#coverage;
-  }
-
-  get accessibility(): Accessibility {
-    return this.#accessibility;
+    throw new Error('Not implemented');
   }
 
   /**
@@ -875,9 +637,37 @@ export class Page extends EventEmitter {
   }
 
   /**
+   * {@inheritDoc Keyboard}
+   */
+  get keyboard(): Keyboard {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * {@inheritDoc Touchscreen}
+   */
+  get touchscreen(): Touchscreen {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * {@inheritDoc Coverage}
+   */
+  get coverage(): Coverage {
+    throw new Error('Not implemented');
+  }
+
+  /**
    * {@inheritDoc Tracing}
    */
   get tracing(): Tracing {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * {@inheritDoc Accessibility}
+   */
+  get accessibility(): Accessibility {
     throw new Error('Not implemented');
   }
 
@@ -2612,37 +2402,7 @@ export class Page extends EventEmitter {
       margin,
     };
 
-    const buffer =
-      options.encoding === 'base64'
-        ? result.data
-        : Buffer.from(result.data, 'base64');
-
-    /*
-    if (options.path) {
-      try {
-        const fs = (await importFS()).promises;
-        await fs.writeFile(options.path, buffer);
-      } catch (error) {
-        if (error instanceof TypeError) {
-          throw new Error(
-            'Screenshots can only be written to a file path in a Node-like environment.'
-          );
-        }
-        throw error;
-      }
-    }
-    */
-    return buffer;
-
-    function processClip(
-      clip: ScreenshotClip
-    ): ScreenshotClip & {scale: number} {
-      const x = Math.round(clip.x);
-      const y = Math.round(clip.y);
-      const width = Math.round(clip.width + clip.x - x);
-      const height = Math.round(clip.height + clip.y - y);
-      return {x, y, width, height, scale: 1};
-    }
+    return output;
   }
 
   /**
@@ -2666,20 +2426,16 @@ export class Page extends EventEmitter {
   }
 
   /**
-   * @param options -
-   * @returns
+   * {@inheritDoc Page.createPDFStream}
    */
-
-  async pdf(options: PDFOptions = {}): Promise<Buffer> {
-    const {path = undefined} = options;
-    const readable = await this.createPDFStream(options);
-    const buffer = await getReadableAsBuffer(readable, path);
-    assert(buffer, 'Could not create buffer');
-    return buffer;
+  async pdf(options?: PDFOptions): Promise<Buffer>;
+  async pdf(): Promise<Buffer> {
+    throw new Error('Not implemented');
   }
 
   /**
-   * @returns The page's title
+   * The page's title
+   *
    * @remarks
    * Shortcut for {@link Frame.title | page.mainFrame().title()}.
    */

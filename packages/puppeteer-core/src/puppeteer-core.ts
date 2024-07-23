@@ -14,16 +14,6 @@
  * limitations under the License.
  */
 
-<<<<<<<< HEAD:packages/puppeteer-core/src/puppeteer-core.ts
-========
-import {initializePuppeteer} from './initializePuppeteer.js';
-
-export * from '../../lib/cjs/puppeteer/common/NetworkConditions.js';
-export * from '../../lib/cjs/puppeteer/common/QueryHandler.js';
-export * from '../../lib/cjs/puppeteer/common/DeviceDescriptors.js';
-export * from '../../lib/cjs/puppeteer/common/Errors.js';
-
->>>>>>>> c80de5c8cbe (Setup puppeteer-core fork):test/src/puppeteer.ts
 export {Protocol} from 'devtools-protocol';
 
 export * from './api/api.js';

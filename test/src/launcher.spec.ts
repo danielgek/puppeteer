@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import expect from 'expect';
 import fs from 'fs';
 import {mkdtemp, readFile, writeFile} from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import {TLSSocket} from 'tls';
 
+import expect from 'expect';
 import {TimeoutError} from 'puppeteer';
 import {Page} from 'puppeteer-core/internal/api/Page.js';
 import {rmSync} from 'puppeteer-core/internal/node/util/fs.js';
 import sinon from 'sinon';
-import {promisify} from 'util';
-import {Product} from '../../lib/cjs/puppeteer/common/Product.js';
+
 import {
   getTestState,
   itOnlyRegularInstall,

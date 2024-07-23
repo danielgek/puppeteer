@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 import fs from 'fs';
-import expect from 'expect';
 import {ServerResponse} from 'http';
 import path from 'path';
+
+import expect from 'expect';
 import {KnownDevices, TimeoutError} from 'puppeteer';
 import {Metrics, Page} from 'puppeteer-core/internal/api/Page.js';
 import {CDPSession} from 'puppeteer-core/internal/common/Connection.js';
@@ -1932,6 +1933,35 @@ describe('Page', function () {
       }
     });
 
+    it('should work with a path', async () => {
+      const {page, server} = await getTestState();
+
+      await page.goto(server.EMPTY_PAGE);
+      const styleHandle = await page.addStyleTag({
+        path: path.join(__dirname, '../assets/injectedstyle.css'),
+      });
+      expect(styleHandle.asElement()).not.toBeNull();
+      expect(
+        await page.evaluate(
+          `window.getComputedStyle(document.querySelector('body')).getPropertyValue('background-color')`
+        )
+      ).toBe('rgb(255, 0, 0)');
+    });
+
+    it('should include sourcemap when path is provided', async () => {
+      const {page, server} = await getTestState();
+
+      await page.goto(server.EMPTY_PAGE);
+      await page.addStyleTag({
+        path: path.join(__dirname, '../assets/injectedstyle.css'),
+      });
+      const styleHandle = (await page.$('style'))!;
+      const styleContent = await page.evaluate((style: HTMLStyleElement) => {
+        return style.innerHTML;
+      }, styleHandle);
+      expect(styleContent).toContain(path.join('assets', 'injectedstyle.css'));
+    });
+
     it('should work with content', async () => {
       const {page, server} = await getTestState();
 
@@ -2043,8 +2073,7 @@ describe('Page', function () {
     });
   });
 
-  /*
-  describe('printing to PDF', function () {
+  describe('Page.pdf', function () {
     it('can print to PDF and save to file', async () => {
       const {page, server} = await getTestState();
 
@@ -2078,7 +2107,6 @@ describe('Page', function () {
       expect(error).toBeInstanceOf(TimeoutError);
     });
   });
-  */
 
   describe('Page.title', function () {
     it('should return the page title', async () => {

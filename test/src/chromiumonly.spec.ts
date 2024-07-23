@@ -20,9 +20,83 @@ import {Deferred} from 'puppeteer-core/internal/util/Deferred.js';
 
 import {getTestState, setupTestBrowserHooks, launch} from './mocha-utils.js';
 import {waitEvent} from './utils.js';
+// TODO: rename this test suite to launch/connect test suite as it actually
+// works across browsers.
+describe('Chromium-Specific Launcher tests', function () {
+  describe('Puppeteer.launch |browserURL| option', function () {
+    it('should be able to connect using browserUrl, with and without trailing slash', async () => {
+      const {close, puppeteer} = await launch({
+        args: ['--remote-debugging-port=21222'],
+      });
+      try {
+        const browserURL = 'http://127.0.0.1:21222';
 
+        const browser1 = await puppeteer.connect({browserURL});
+        const page1 = await browser1.newPage();
+        expect(
+          await page1.evaluate(() => {
+            return 7 * 8;
+          })
+        ).toBe(56);
+        browser1.disconnect();
 
-describeChromeOnly('Chromium-Specific Launcher tests', function () {
+        const browser2 = await puppeteer.connect({
+          browserURL: browserURL + '/',
+        });
+        const page2 = await browser2.newPage();
+        expect(
+          await page2.evaluate(() => {
+            return 8 * 7;
+          })
+        ).toBe(56);
+        browser2.disconnect();
+      } finally {
+        await close();
+      }
+    });
+    it('should throw when using both browserWSEndpoint and browserURL', async () => {
+      const {browser, close, puppeteer} = await launch({
+        args: ['--remote-debugging-port=21222'],
+      });
+      try {
+        const browserURL = 'http://127.0.0.1:21222';
+
+        let error!: Error;
+        await puppeteer
+          .connect({
+            browserURL,
+            browserWSEndpoint: browser.wsEndpoint(),
+          })
+          .catch(error_ => {
+            return (error = error_);
+          });
+        expect(error.message).toContain(
+          'Exactly one of browserWSEndpoint, browserURL or transport'
+        );
+      } finally {
+        await close();
+      }
+    });
+    it('should throw when trying to connect to non-existing browser', async () => {
+      const {close, puppeteer} = await launch({
+        args: ['--remote-debugging-port=21222'],
+      });
+      try {
+        const browserURL = 'http://127.0.0.1:32333';
+
+        let error!: Error;
+        await puppeteer.connect({browserURL}).catch(error_ => {
+          return (error = error_);
+        });
+        expect(error.message).toContain(
+          'Failed to fetch browser webSocket URL from'
+        );
+      } finally {
+        await close();
+      }
+    });
+  });
+
   describe('Puppeteer.launch |pipe| option', function () {
     it('should support the pipe option', async () => {
       const {browser, close} = await launch({pipe: true}, {createPage: false});

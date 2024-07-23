@@ -40,6 +40,7 @@ import {
   valueFromRemoteObject,
 } from './util.js';
 
+const SOURCE_URL_REGEX = /^[\040\t]*\/\/[@#] sourceURL=\s*(\S*?)\s*$/m;
 
 const getSourceUrlComment = (url: string) => {
   return `//# sourceURL=${url}`;
@@ -305,20 +306,16 @@ export class ExecutionContext {
         : createJSHandle(this, remoteObject);
     }
 
-    const functionText = pageFunction.toString();
-
-    /**
-     * We remove the check for the ability for dynamic javascript to be
-     * serializable, because the Workers runtime does not allow dynamic
-     * javascript to be executed, as a security precaution. In the
-     * future, we can consider the serialization check in the back end
-     * but before the message gets to the remote browser.
-     */
-
+    const functionDeclaration = stringifyFunction(pageFunction);
+    const functionDeclarationWithSourceUrl = SOURCE_URL_REGEX.test(
+      functionDeclaration
+    )
+      ? functionDeclaration
+      : `${functionDeclaration}\n${sourceUrlComment}\n`;
     let callFunctionOnPromise;
     try {
       callFunctionOnPromise = this._client.send('Runtime.callFunctionOn', {
-        functionDeclaration: functionText,
+        functionDeclaration: functionDeclarationWithSourceUrl,
         executionContextId: this._contextId,
         arguments: await Promise.all(args.map(convertArgument.bind(this))),
         returnByValue,

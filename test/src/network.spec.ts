@@ -824,6 +824,37 @@ describe('network', function () {
       ]);
       expect(response.headers()['set-cookie']).toBe(setCookieString);
     });
+
+    it('Cross-origin set-cookie', async () => {
+      const {page, httpsServer, close} = await launch({
+        ignoreHTTPSErrors: true,
+      });
+      try {
+        await page.goto(httpsServer.PREFIX + '/empty.html');
+
+        const setCookieString = 'hello=world';
+        httpsServer.setRoute('/setcookie.html', (_req, res) => {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('set-cookie', setCookieString);
+          res.end();
+        });
+        await page.goto(httpsServer.PREFIX + '/setcookie.html');
+        const url = httpsServer.CROSS_PROCESS_PREFIX + '/setcookie.html';
+        const [response] = await Promise.all([
+          waitEvent<HTTPResponse>(page, 'response', response => {
+            return response.url() === url;
+          }),
+          page.evaluate(src => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', src);
+            xhr.send();
+          }, url),
+        ]);
+        expect(response.headers()['set-cookie']).toBe(setCookieString);
+      } finally {
+        await close();
+      }
+    });
   });
 
   describe('Page.setBypassServiceWorker', () => {

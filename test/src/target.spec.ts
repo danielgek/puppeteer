@@ -26,6 +26,22 @@ import {waitEvent} from './utils.js';
 describe('Target', function () {
   setupTestBrowserHooks();
 
+  it('Browser.targets should return all of the targets', async () => {
+    const {browser} = await getTestState();
+
+    // The pages will be the testing page and the original newtab page
+    const targets = browser.targets();
+    expect(
+      targets.some(target => {
+        return target.type() === 'page' && target.url() === 'about:blank';
+      })
+    ).toBeTruthy();
+    expect(
+      targets.some(target => {
+        return target.type() === 'browser';
+      })
+    ).toBeTruthy();
+  });
   it('Browser.pages should return all of the pages', async () => {
     const {page, context} = await getTestState();
 
@@ -33,6 +49,15 @@ describe('Target', function () {
     const allPages = await context.pages();
     expect(allPages).toHaveLength(1);
     expect(allPages).toContain(page);
+  });
+  it('should contain browser target', async () => {
+    const {browser} = await getTestState();
+
+    const targets = browser.targets();
+    const browserTarget = targets.find(target => {
+      return target.type() === 'browser';
+    });
+    expect(browserTarget).toBeTruthy();
   });
   it('should be able to use the default page in the browser', async () => {
     const {page, browser} = await getTestState();

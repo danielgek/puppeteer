@@ -215,4 +215,35 @@ describe('BrowserContext', function () {
     await Promise.all([context1.close(), context2.close()]);
     expect(browser.browserContexts()).toHaveLength(1);
   });
+
+  it('should work across sessions', async () => {
+    const {browser, puppeteer} = await getTestState({
+      skipContextCreation: true,
+    });
+
+    expect(browser.browserContexts()).toHaveLength(1);
+    const context = await browser.createIncognitoBrowserContext();
+    expect(browser.browserContexts()).toHaveLength(2);
+    const remoteBrowser = await puppeteer.connect({
+      browserWSEndpoint: browser.wsEndpoint(),
+    });
+    const contexts = remoteBrowser.browserContexts();
+    expect(contexts).toHaveLength(2);
+    remoteBrowser.disconnect();
+    await context.close();
+  });
+
+  it('should provide a context id', async () => {
+    const {browser} = await getTestState({
+      skipContextCreation: true,
+    });
+
+    expect(browser.browserContexts()).toHaveLength(1);
+    expect(browser.browserContexts()[0]!.id).toBeUndefined();
+
+    const context = await browser.createIncognitoBrowserContext();
+    expect(browser.browserContexts()).toHaveLength(2);
+    expect(browser.browserContexts()[1]!.id).toBeDefined();
+    await context.close();
+  });
 });
