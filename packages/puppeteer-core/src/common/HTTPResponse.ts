@@ -26,6 +26,7 @@ import {CDPSession} from './Connection.js';
 import {ProtocolError} from './Errors.js';
 import {HTTPRequest} from './HTTPRequest.js';
 import {SecurityDetails} from './SecurityDetails.js';
+import {Buffer} from 'node:buffer';
 
 /**
  * @internal

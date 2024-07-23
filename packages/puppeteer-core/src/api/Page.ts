@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type {Readable} from 'stream';
+import type {Readable} from 'node:stream';
 
 import {Protocol} from 'devtools-protocol';
 
@@ -81,6 +81,8 @@ import {
   NodeLocator,
 } from './locators/locators.js';
 import type {Target} from './Target.js';
+
+import {Buffer} from 'node:buffer';
 
 /**
  * @public

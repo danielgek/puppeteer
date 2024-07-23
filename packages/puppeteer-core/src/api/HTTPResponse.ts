@@ -20,6 +20,7 @@ import {SecurityDetails} from '../common/SecurityDetails.js';
 
 import {Frame} from './Frame.js';
 import {HTTPRequest} from './HTTPRequest.js';
+import {Buffer} from 'node:buffer';
 
 /**
  * @public

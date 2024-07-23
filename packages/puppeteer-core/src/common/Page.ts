@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type {Readable} from 'stream';
+import type {Readable} from 'node:stream';
 
 import {Protocol} from 'devtools-protocol';
 
@@ -89,6 +89,9 @@ import {
   withSourcePuppeteerURLIfNone,
 } from './util.js';
 import {WebWorker} from './WebWorker.js';
+
+
+import {Buffer} from 'node:buffer';
 
 /**
  * @internal
